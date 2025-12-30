@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edulink-cache-v1';
+const CACHE_NAME = 'apfiles-cache-v1';
 const urlsToCache = [
   './',
   './index.html',

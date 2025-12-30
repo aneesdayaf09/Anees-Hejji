@@ -7,12 +7,12 @@ import { User, RequestItem, Subject, UserRole, RequestType, MaterialCategory } f
 
 // Helper to save state for demo persistence
 const loadRequests = (): RequestItem[] => {
-  const saved = localStorage.getItem('edulink_requests');
+  const saved = localStorage.getItem('apfiles_requests');
   return saved ? JSON.parse(saved) : [];
 };
 
 const loadUsers = (): User[] => {
-  const saved = localStorage.getItem('edulink_users');
+  const saved = localStorage.getItem('apfiles_users');
   return saved ? JSON.parse(saved) : [];
 };
 
@@ -28,11 +28,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('edulink_requests', JSON.stringify(requests));
+    localStorage.setItem('apfiles_requests', JSON.stringify(requests));
   }, [requests]);
 
   useEffect(() => {
-    localStorage.setItem('edulink_users', JSON.stringify(users));
+    localStorage.setItem('apfiles_users', JSON.stringify(users));
   }, [users]);
 
   const handleLogin = (loggedInUser: User) => {

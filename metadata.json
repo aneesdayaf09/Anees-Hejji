@@ -1,5 +1,5 @@
 {
-  "name": "Files App",
+  "name": "Ap Files Request",
   "description": "A resource distribution platform where students request specific study units (Chemistry, Biology, Physics, Calculus) and a Builder (Admin) fulfills them via AI-generated documents sent to WhatsApp and the web dashboard.",
   "requestFramePermissions": []
 }

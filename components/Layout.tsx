@@ -15,7 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <GraduationCap className="w-8 h-8" />
-            <span className="text-xl font-bold tracking-tight">EduLink Builder</span>
+            <span className="text-xl font-bold tracking-tight">Ap Files Request</span>
           </div>
           
           {user && (
@@ -42,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       
       <footer className="bg-gray-100 border-t border-gray-200 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-gray-500 text-sm">
-          &copy; {new Date().getFullYear()} EduLink. Powered by Gemini.
+          &copy; {new Date().getFullYear()} Ap Files Request. Powered by Gemini.
         </div>
       </footer>
     </div>
