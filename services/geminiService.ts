@@ -1,9 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 import { Subject, RequestType, MaterialCategory } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Fix for TypeScript "Cannot find name 'process'" error
+declare const process: {
+  env: {
+    API_KEY: string;
+  };
+};
+
+// Fallback to avoid crash if key is missing (though requests will fail)
+const apiKey = process.env.API_KEY || ""; 
+
+const ai = new GoogleGenAI({ apiKey });
 
 export const generateStudyMaterial = async (subject: Subject, unit: string, type: RequestType, materialCategory?: MaterialCategory, attachedFileName?: string, description?: string): Promise<string> => {
+  if (!apiKey) {
+    return "## Configuration Error\nAPI Key is missing. Please add your `API_KEY` in the Vercel Environment Variables.";
+  }
+
   try {
     let prompt = "";
     
@@ -113,6 +127,6 @@ export const generateStudyMaterial = async (subject: Subject, unit: string, type
     return response.text || "## Error generating content. Please try again.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "## System Error\nCould not generate study material at this time.";
+    return "## System Error\nCould not generate study material at this time. Please try again later.";
   }
 };
