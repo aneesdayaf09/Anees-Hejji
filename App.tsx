@@ -16,6 +16,13 @@ const loadUsers = (): User[] => {
   return saved ? JSON.parse(saved) : [];
 };
 
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
@@ -58,7 +65,7 @@ const App: React.FC = () => {
     if (!user) return;
     
     const newRequest: RequestItem = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       userId: user.id,
       userName: user.fullName,
       userPhone: user.phoneNumber,
