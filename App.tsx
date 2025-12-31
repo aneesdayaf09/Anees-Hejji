@@ -5,8 +5,7 @@ import { StudentDashboard } from './components/StudentDashboard';
 import { BuilderDashboard } from './components/BuilderDashboard';
 import { User, RequestItem, Subject, UserRole, RequestType, MaterialCategory } from './types';
 import { dataStore } from './services/dataStore';
-import { db, isCloudEnabled } from './services/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { supabase, isCloudEnabled } from './services/supabase';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -21,27 +20,34 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Initial Data Loading & Subscription
+  // Initial Data Loading & Realtime Subscription
   useEffect(() => {
-    let unsubscribeUsers: () => void;
-    let unsubscribeRequests: () => void;
-
-    if (isCloudEnabled && db) {
-      // FIREBASE MODE: Real-time listeners
-      const usersQuery = query(collection(db, "users"));
-      unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        const fetchedUsers: User[] = [];
-        snapshot.forEach((doc) => fetchedUsers.push(doc.data() as User));
-        setUsers(fetchedUsers);
-      });
-
-      const requestsQuery = query(collection(db, "requests"));
-      unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
-        const fetchedRequests: RequestItem[] = [];
-        snapshot.forEach((doc) => fetchedRequests.push(doc.data() as RequestItem));
-        setRequests(fetchedRequests);
+    if (isCloudEnabled && supabase) {
+      const fetchData = async () => {
+        // Fetch Initial Data
+        const { data: userData } = await supabase.from('users').select('*');
+        const { data: requestData } = await supabase.from('requests').select('*');
+        
+        if (userData) setUsers(userData);
+        if (requestData) setRequests(requestData);
         setLoading(false);
-      });
+      };
+
+      fetchData();
+
+      // Subscribe to Realtime Changes
+      const channel = supabase.channel('main_db_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload: any) => {
+           handleRealtimeUpdate(payload, setUsers);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, (payload: any) => {
+           handleRealtimeUpdate(payload, setRequests);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } else {
       // LOCAL STORAGE MODE: One-time load
       const savedUsers = localStorage.getItem('apfiles_users');
@@ -51,19 +57,34 @@ const App: React.FC = () => {
       if (savedRequests) setRequests(JSON.parse(savedRequests));
       setLoading(false);
     }
-
-    return () => {
-      if (unsubscribeUsers) unsubscribeUsers();
-      if (unsubscribeRequests) unsubscribeRequests();
-    };
   }, []);
+
+  // Helper to merge realtime updates into state array
+  const handleRealtimeUpdate = (payload: any, setState: React.Dispatch<React.SetStateAction<any[]>>) => {
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setState(prev => {
+      if (eventType === 'INSERT') {
+        // Avoid duplicates if initial fetch already got it
+        if (prev.find(item => item.id === newRecord.id)) return prev;
+        return [...prev, newRecord];
+      }
+      if (eventType === 'UPDATE') {
+        return prev.map(item => item.id === newRecord.id ? newRecord : item);
+      }
+      if (eventType === 'DELETE') {
+        return prev.filter(item => item.id !== oldRecord.id);
+      }
+      return prev;
+    });
+  };
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
   };
 
   const handleRegister = async (newUser: User) => {
-    // Optimistic update for Local Mode
+    // Optimistic update for Local Mode (Supabase will handle it via subscription for Cloud Mode)
     if (!isCloudEnabled) {
       setUsers(prev => [...prev, newUser]);
     }
@@ -164,7 +185,7 @@ const App: React.FC = () => {
       {/* Cloud Status Indicator */}
       {!isCloudEnabled && (
         <div className="bg-amber-100 text-amber-800 text-xs text-center py-1 px-4 rounded-md mb-4 border border-amber-200">
-          Running in Offline Mode. Data will not sync between devices. Ask Admin to configure Firebase keys.
+          Running in Offline Mode. Data will not sync between devices. Ask Admin to add Supabase Keys.
         </div>
       )}
       

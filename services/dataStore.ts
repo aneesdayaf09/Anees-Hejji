@@ -1,8 +1,4 @@
-import { db, isCloudEnabled } from './firebase';
-import { 
-  collection, doc, setDoc, updateDoc, deleteDoc, 
-  query, onSnapshot, writeBatch, where, getDocs
-} from "firebase/firestore";
+import { supabase, isCloudEnabled } from './supabase';
 import { User, RequestItem } from '../types';
 
 // LOCAL STORAGE KEYS
@@ -23,8 +19,9 @@ export const dataStore = {
   
   // Create or Update User
   saveUser: async (user: User) => {
-    if (isCloudEnabled && db) {
-      await setDoc(doc(db, "users", user.id), user);
+    if (isCloudEnabled && supabase) {
+      // Upsert: Insert or Update if id exists
+      await supabase.from('users').upsert(user);
     } else {
       const users = getLS(LS_USERS);
       const index = users.findIndex((u: User) => u.id === user.id);
@@ -38,8 +35,8 @@ export const dataStore = {
   },
 
   updateUserPartial: async (id: string, updates: Partial<User>) => {
-    if (isCloudEnabled && db) {
-      await updateDoc(doc(db, "users", id), updates);
+    if (isCloudEnabled && supabase) {
+      await supabase.from('users').update(updates).eq('id', id);
     } else {
       const users = getLS(LS_USERS);
       const updated = users.map((u: User) => u.id === id ? { ...u, ...updates } : u);
@@ -48,19 +45,11 @@ export const dataStore = {
   },
 
   deleteUser: async (id: string) => {
-    if (isCloudEnabled && db) {
+    if (isCloudEnabled && supabase) {
+        // Delete requests first (though we could cascade in SQL, we do it explicitly here for safety)
+        await supabase.from('requests').delete().eq('userId', id);
         // Delete user
-        await deleteDoc(doc(db, "users", id));
-        
-        // Delete associated requests (Firestore requires manual query & delete)
-        const q = query(collection(db, "requests"), where("userId", "==", id));
-        const snapshot = await getDocs(q);
-        const batch = writeBatch(db);
-        snapshot.docs.forEach((doc) => {
-            batch.delete(doc.ref);
-        });
-        await batch.commit();
-
+        await supabase.from('users').delete().eq('id', id);
     } else {
       const users = getLS(LS_USERS).filter((u: User) => u.id !== id);
       const requests = getLS(LS_REQUESTS).filter((r: RequestItem) => r.userId !== id);
@@ -72,8 +61,8 @@ export const dataStore = {
   // --- REQUESTS ---
 
   addRequest: async (request: RequestItem) => {
-    if (isCloudEnabled && db) {
-      await setDoc(doc(db, "requests", request.id), request);
+    if (isCloudEnabled && supabase) {
+      await supabase.from('requests').insert(request);
     } else {
       const reqs = getLS(LS_REQUESTS);
       reqs.push(request);
@@ -82,8 +71,8 @@ export const dataStore = {
   },
 
   updateRequest: async (id: string, updates: Partial<RequestItem>) => {
-    if (isCloudEnabled && db) {
-      await updateDoc(doc(db, "requests", id), updates);
+    if (isCloudEnabled && supabase) {
+      await supabase.from('requests').update(updates).eq('id', id);
     } else {
       const reqs = getLS(LS_REQUESTS);
       const updated = reqs.map((r: RequestItem) => r.id === id ? { ...r, ...updates } : r);
@@ -93,14 +82,11 @@ export const dataStore = {
 
   // Update denormalized user data in all their requests
   syncUserToRequests: async (userId: string, name: string, phone: string) => {
-    if (isCloudEnabled && db) {
-        const q = query(collection(db, "requests"), where("userId", "==", userId));
-        const snapshot = await getDocs(q);
-        const batch = writeBatch(db);
-        snapshot.docs.forEach((d) => {
-            batch.update(d.ref, { userName: name, userPhone: phone });
-        });
-        await batch.commit();
+    if (isCloudEnabled && supabase) {
+        await supabase
+          .from('requests')
+          .update({ userName: name, userPhone: phone })
+          .eq('userId', userId);
     } else {
         const reqs = getLS(LS_REQUESTS);
         const updated = reqs.map((r: RequestItem) => {
